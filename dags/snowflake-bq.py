@@ -1,10 +1,26 @@
 from airflow import DAG
 from airflow.utils.dates import days_ago
 from airflow.contrib.operators.gcs_to_bq import GoogleCloudStorageToBigQueryOperator
+from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator, SnowflakeSqlApiOperator
 
 args = {
     'owner': 'packt-developer',
 }
+
+sql_statement = "COPY INTO 'gcs://snowflake-landing/faa/' \
+FROM ( \
+        SELECT DISTINCT object_id, \
+            global_id, \
+            faa_identifier, \
+            name, \
+            icao_id, \
+            airport_type, \
+            service_city, \
+            state_abbreviation, \
+            country \
+        FROM US_AIRPORTS \
+    ) OVERWRITE = TRUE FILE_FORMAT = (TYPE = csv COMPRESSION = NONE) STORAGE_INTEGRATION = gcs_integration"
+
 
 with DAG(
     dag_id='snowflake-bq',
@@ -14,87 +30,72 @@ with DAG(
     max_active_runs=1,
     is_paused_upon_creation=False
 
-) as dag:
+) as dag: 
 
     bq_ingestion = GoogleCloudStorageToBigQueryOperator(
         task_id="gcs_parquet_ingestion",
-        bucket='cf-spark-external',
-        source_format='parquet',
+        bucket='snowflake-landing',
+        quote_character="'",
+        source_format='csv',
         source_objects=[
-            'googl-market-data/*.parquet'],
-        destination_project_dataset_table='composer_destination.googl_bq_ingestion',
+            'faa/*'],
+        destination_project_dataset_table='snowflake_ingestion.faa5',
         schema_fields=[
-            {
-                "mode": "NULLABLE",
-                "name": "symbol",
-                "type": "STRING"
-            },
-            {
-                "mode": "NULLABLE",
-                "name": "datetime",
-                "type": "STRING"
-            },
-            {
-                "mode": "NULLABLE",
-                "name": "tm",
-                "type": "INTEGER"
-            },
-            {
-                "mode": "NULLABLE",
-                "name": "dt",
-                "type": "DATE"
-            },
-            {
-                "mode": "NULLABLE",
-                "name": "exchange_code",
-                "type": "STRING"
-            },
-            {
-                "mode": "NULLABLE",
-                "name": "trade_price",
-                "type": "FLOAT"
-            },
-            {
-                "mode": "NULLABLE",
-                "name": "trade_size",
-                "type": "INTEGER"
-            },
-            {
-                "fields": [
-                    {
-                        "fields": [
-                            {
-                                "mode": "NULLABLE",
-                                "name": "element",
-                                "type": "STRING"
-                            }
-                        ],
-                        "mode": "REPEATED",
-                        "name": "list",
-                        "type": "RECORD"
-                    }
-                ],
-                "mode": "NULLABLE",
-                "name": "trade_condition",
-                "type": "RECORD"
-            },
-            {
-                "mode": "NULLABLE",
-                "name": "trade_id",
-                "type": "INTEGER"
-            },
-            {
-                "mode": "NULLABLE",
-                "name": "tape",
-                "type": "STRING"
-            }
-        ],
+  {
+    "mode": "NULLABLE",
+    "name": "object_id",
+    "type": "INTEGER"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "global_id",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "faa_identifier",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "name",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "icao_id",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "airport_type",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "service_city",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "state_abbreviation",
+    "type": "STRING"
+  },
+  {
+    "mode": "NULLABLE",
+    "name": "country",
+    "type": "STRING"
+  }
+],
         write_disposition='WRITE_TRUNCATE'
     )
 
 
-    snowflake_export >> bq_ingestion
+    snowflake_op_sql_str = SnowflakeOperator(task_id="snowflake_op_sql_str", sql=sql_statement)
+    # snowflake_export >> bq_ingestion
+
+    snowflake_op_sql_str >> bq_ingestion
 
 if __name__ == "__main__":
-    dag.cli()
-    # dag.test()
+    # dag.cli()
+    dag.test()
