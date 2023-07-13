@@ -39,7 +39,7 @@ with DAG(
         source_format='csv',
         source_objects=[
             'faa/*'],
-        destination_project_dataset_table='snowflake_ingestion.faa5',
+        destination_project_dataset_table='snowflake_ingestion.us_airports',
         schema_fields=[
   {
     "mode": "NULLABLE",
