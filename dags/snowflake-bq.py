@@ -97,5 +97,5 @@ with DAG(
     snowflake_op_sql_str >> bq_ingestion
 
 if __name__ == "__main__":
-    # dag.cli()
-    dag.test()
+    dag.cli()
+    # dag.test()
