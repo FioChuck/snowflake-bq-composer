@@ -90,9 +90,7 @@ with DAG(
         write_disposition='WRITE_TRUNCATE'
     )
 
-
     snowflake_op_sql_str = SnowflakeOperator(task_id="snowflake_op_sql_str", sql=sql_statement)
-    # snowflake_export >> bq_ingestion
 
     snowflake_op_sql_str >> bq_ingestion
 
